@@ -1,0 +1,98 @@
+service: serverless-data-processing-kinesis
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  profile: test
+
+functions:
+  wildRydesStreamProcessor:
+    role: WildRydesStreamProcessorRole
+    handler: functions/wildRydesStreamProcessor.handler
+    events:
+      - stream:
+          type: kinesis
+          batchSize: 100
+          maximumRetryAttempts: 2
+          arn:
+            Fn::GetAtt:
+              - kinesisStream
+              - Arn
+          destinations:
+            onFailure: arn:aws:sqs:${aws:region}:${aws:accountId}:wildrydes-queue
+    environment:
+      TABLE_NAME: !Ref UnicornSensorData
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+
+resources:
+  Resources:
+    kinesisStream:
+      Type: AWS::Kinesis::Stream
+      Properties:
+        Name: wildrydes
+        RetentionPeriodHours: 24
+        ShardCount: 1
+
+    UnicornSensorData:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: UnicornSensorData
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: 'Name'
+            AttributeType: 'S'
+          - AttributeName: 'StatusTime'
+            AttributeType: 'S'
+        KeySchema:
+          - AttributeName: 'Name'
+            KeyType: 'HASH'
+          - AttributeName: 'StatusTime'
+            KeyType: 'RANGE'
+
+    WildRydesQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: wildrydes-queue
+
+    WildRydesStreamProcessorRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        RoleName: WildRydesStreamProcessorRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: 'Allow'
+              Principal:
+                Service:
+                  - 'lambda.amazonaws.com'
+              Action:
+                - 'sts:AssumeRole'
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+        Policies:
+          - PolicyName: WildRydesDynamoDBWritePolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: 'Allow'
+                  Action:
+                    - 'sqs:SendMessage'
+                  Resource: !GetAtt WildRydesQueue.Arn
+
+                - Effect: Allow
+                  Action:
+                    - dynamodb:BatchWriteItem
+                  Resource:
+                    - !GetAtt UnicornSensorData.Arn
+
+                - Effect: Allow
+                  Action:
+                    - kinesis:GetRecords
+                    - kinesis:GetShardIterator
+                    - kinesis:DescribeStream
+                    - kinesis:ListStreams
+                  Resource:
+                    - !GetAtt kinesisStream.Arn
