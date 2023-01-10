@@ -1,6 +1,6 @@
 #  Serverless Data Processing on AWS
 
-![Architecture Diagram](images/serverless-kinesis.png?raw=true "Title")
+![Architecture Diagram](images/serverless-kinesis.png?raw=true "Architecture Diagram")
 
 This pattern creates an AWS Kinesis Data Stream, a stream consumer, and an AWS Lambda function. When data is added to the stream, the Lambda function is invoked via a consumer.
 
