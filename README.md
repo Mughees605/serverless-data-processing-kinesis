@@ -70,3 +70,15 @@ Important: this application uses various AWS services and there are costs associ
     ```
 1. Click on View logs in CloudWatch to explore the logs in CloudWatch for the log group /aws/lambda/WildRydesStreamProcessor
 1. In the logs you can observe that, there will be error and the same batch will be split into two halves and processed. This splitting continues recursively until there is a single item or messages are processed successfully. 
+
+## Tumbling Windows
+1. The tumbling window feature allows a streaming data source to pass state between multiple Lambda invocations. During the window, a state is passed from one invocation to the next, until a final invocation at the end of the window. This allows developers to calculate aggregates in near-real time, and makes it easier to calculate sums, averages, and counts on values across multiple batches of data. This feature provides an alternative way to build analytics in addition to services like Amazon Kinesis Data Analytics.
+1. To test tumbling window, insert data into Kinesis Data Stream by running producer binary.
+    ```
+    ./producer
+    ```
+1. Click on the Monitor tab. Next, click on View logs in CloudWatch to explore the logs in CloudWatch for the log group /aws/lambda/WildRydesAggregator.
+
+## Error Handling with Checkpoint and Bisect On Batch
+
+While Bisect On Batch is helpful in narrowing down to the problematic messages, it can result in processing previously successful messages more than once. With Checkpoint feature you can return the sequence identifier for the failed messages. This provides more precise control over how to choose to continue processing the stream. For example in a batch of 9 messages where the fifth message fails - Lambda process the batch of messages, items 1-9. The fifth message fails and the function returns the failed sequence identifier. The batch is only retried from message 5 to 9
