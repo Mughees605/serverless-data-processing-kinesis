@@ -45,13 +45,28 @@ Important: this application uses various AWS services and there are costs associ
         This will unpack the consumer and producer files to your Cloud9 environment.
 
 1.  Use the command-line producer to produce messages into the stream. In the terminal, run the producer to start emitting sensor data to the stream.
+
     ```
     ./producer -name Shadowfax -stream wildrydes -msgs 20
     ```
+
     The producer emits a message a second to the stream and prints a period to the screen.
 
-1. Verify that the trigger is properly executing the Lambda function. View the metrics emitted by the function and inspect the output from the Lambda function.
-1. Click on View logs in CloudWatch to explore the logs in CloudWatch for the log group /aws/lambda/WildRydesStreamProcessor
-1. Using the AWS Management Console, query the DynamoDB table for data for a specific unicorn. Use the producer to create data from a distinct unicorn name and verify those records are persisted.
+1.  Verify that the trigger is properly executing the Lambda function. View the metrics emitted by the function and inspect the output from the Lambda function.
+1.  Click on View logs in CloudWatch to explore the logs in CloudWatch for the log group /aws/lambda/WildRydesStreamProcessor
+1.  Using the AWS Management Console, query the DynamoDB table for data for a specific unicorn. Use the producer to create data from a distinct unicorn name and verify those records are persisted.
 
-## Cleanup
+##  Error Handling with Retry Settings
+
+1. AWS Lambda can reprocess batches of messages from Kinesis Data Streams when an error occurs in one of the items in the batch. You can configure the number of retries by configuring Retry attempts and/or Maximum age of record. The batch will be retried until the number of retry attempts or until the expiration of the batch. You can also configure On-failure destination which will be used by Lambda to send metadata of your failed invocation. You can send this metadata of the failed invocation to either an Amazon SQS queue or an Amazon SNS topic. Typically there are two kinds of errors in the data stream. One category belongs to transient errors which are temporary in nature and are successfully processed with retry logic. Second category belongs to Poison Pill (either data quality / data that generates an exception in Lambda code) which are permanent in nature. In this case Lambda retries for the configured retry attempts and then discards the records to the On-failure destination.
+1. To test error handling with retry setting set bisectBatchOnFunctionError to false.
+1. In the logs you can observe that, there will be error and the same batch will be retried twice ( as we configured retry-attempts to 2) 
+
+##  Error Handling with Bisect On Batch settings
+1.  To test error handling with retry setting set bisectBatchOnFunctionError to true.
+1.  Insert data into Kinesis Data Stream by running producer binary.
+    ```
+    ./producer -name Shadowfax -stream wildrydes -msgs 20
+    ```
+1. Click on View logs in CloudWatch to explore the logs in CloudWatch for the log group /aws/lambda/WildRydesStreamProcessor
+1. In the logs you can observe that, there will be error and the same batch will be split into two halves and processed. This splitting continues recursively until there is a single item or messages are processed successfully. 
