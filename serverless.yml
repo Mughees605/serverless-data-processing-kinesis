@@ -14,7 +14,9 @@ functions:
     events:
       - stream:
           type: kinesis
-          batchSize: 100
+          batchSize: 10
+          batchWindow: 30
+          bisectBatchOnFunctionError: true
           maximumRetryAttempts: 2
           arn:
             Fn::GetAtt:
@@ -25,6 +27,23 @@ functions:
     environment:
       TABLE_NAME: !Ref UnicornSensorData
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+
+  wildRydesStreamAggregator:
+    role: UnicornAggregationRole
+    handler: functions/wildRydesStreamAggregator.handler
+    events:
+      - stream:
+          type: kinesis
+          batchSize: 100
+          maximumRetryAttempts: 2
+          bisectBatchOnFunctionError: true
+          tumblingWindowInSeconds: 60
+          arn:
+            Fn::GetAtt:
+              - kinesisStream
+              - Arn
+    environment:
+      TABLE_NAME: !Ref UnicornAggregation
 
 resources:
   Resources:
@@ -49,6 +68,22 @@ resources:
           - AttributeName: 'Name'
             KeyType: 'HASH'
           - AttributeName: 'StatusTime'
+            KeyType: 'RANGE'
+
+    UnicornAggregation:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: UnicornAggregation
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: 'name'
+            AttributeType: 'S'
+          - AttributeName: 'windowStart'
+            AttributeType: 'S'
+        KeySchema:
+          - AttributeName: 'name'
+            KeyType: 'HASH'
+          - AttributeName: 'windowStart'
             KeyType: 'RANGE'
 
     WildRydesQueue:
@@ -87,6 +122,42 @@ resources:
                     - dynamodb:BatchWriteItem
                   Resource:
                     - !GetAtt UnicornSensorData.Arn
+
+                - Effect: Allow
+                  Action:
+                    - kinesis:GetRecords
+                    - kinesis:GetShardIterator
+                    - kinesis:DescribeStream
+                    - kinesis:ListStreams
+                  Resource:
+                    - !GetAtt kinesisStream.Arn
+
+    UnicornAggregationRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        RoleName: UnicornAggregationRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: 'Allow'
+              Principal:
+                Service:
+                  - 'lambda.amazonaws.com'
+              Action:
+                - 'sts:AssumeRole'
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+        Policies:
+          - PolicyName: unicornAggregationDynamoDBWritePolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:PutItem
+                  Resource:
+                    - !GetAtt UnicornAggregation.Arn
 
                 - Effect: Allow
                   Action:
