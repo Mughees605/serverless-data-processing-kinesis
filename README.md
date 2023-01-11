@@ -28,24 +28,30 @@ Important: this application uses various AWS services and there are costs associ
 
 ## Testing
 
-1. Setup AWS Cloud9 instance
+1.  Setup AWS Cloud9 instance
 
-1. The modules utilize two command-line clients to simulate and display sensor data from the unicorns in the fleet. These are small
-   programs written in the Go Programming Language. The below instructions in the Installation section walks through downloading pre-built binaries, but you can also download the source and build it manually:
+1.  The modules utilize two command-line clients to simulate and display sensor data from the unicorns in the fleet. These are small
+    programs written in the Go Programming Language. The below instructions in the Installation section walks through downloading pre-built binaries, but you can also download the source and build it manually:
 
-   ### Installation
+    ### Installation
 
-   1. Switch to the tab where you have your Cloud9 environment opened.
-   1. Download and unpack the command line clients by running the following command in the Cloud9 terminal:
+    1.  Switch to the tab where you have your Cloud9 environment opened.
+    1.  Download and unpack the command line clients by running the following command in the Cloud9 terminal:
 
-        ```
-        curl -s https://data-processing.serverlessworkshops.io/client/client.tar | tar -xv
-        ```
-    This will unpack the consumer and producer files to your Cloud9 environment.
-    
-1. From the command line, use serverless framework to deploy the AWS resources for the pattern as specified in the serverless.yml file:
-   ```
-   sls deploy
-   ```
+            ```
+            curl -s https://data-processing.serverlessworkshops.io/client/client.tar | tar -xv
+            ```
+
+        This will unpack the consumer and producer files to your Cloud9 environment.
+
+1.  Use the command-line producer to produce messages into the stream. In the terminal, run the producer to start emitting sensor data to the stream.
+    ```
+    ./producer -name Shadowfax -stream wildrydes -msgs 20
+    ```
+    The producer emits a message a second to the stream and prints a period to the screen.
+
+1. Verify that the trigger is properly executing the Lambda function. View the metrics emitted by the function and inspect the output from the Lambda function.
+1. Click on View logs in CloudWatch to explore the logs in CloudWatch for the log group /aws/lambda/WildRydesStreamProcessor
+1. Using the AWS Management Console, query the DynamoDB table for data for a specific unicorn. Use the producer to create data from a distinct unicorn name and verify those records are persisted.
 
 ## Cleanup
